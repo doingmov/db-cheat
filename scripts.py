@@ -1,22 +1,27 @@
 from datacenter.models import Schoolkid, Mark, Chastisement, Lesson, Commendation
 
 def fix_marks(schoolkid):
-    bad_marks = Mark.objects.filter(schoolkid=schoolkid, points__in=[2, 3])
-    for mark in bad_marks:
-        mark.points = 5
-        mark.save()
+    if not schoolkid:
+        return
+    Mark.objects.filter(schoolkid=schoolkid, points__in=[2, 3]).update(points=5)
+    
 
 def remove_chastisements(schoolkid):
+    if not schoolkid:
+        return
     Chastisement.objects.filter(schoolkid=schoolkid).delete()
 
-def create_commendation(schoolkid_name, subject_title):
+
+def get_schoolkid_by_name(schoolkid_name):
     try:
-        child = Schoolkid.objects.get(full_name__icontains=schoolkid_name)
-    except Schoolkid.DoesNotExist:
-        print(f"Ученика с именем {schoolkid_name} не найдено")
+        return Schoolkid.objects.get(full_name__icontains=schoolkid_name)
+    except (Schoolkid.DoesNotExist, Schoolkid.MultipleObjectsReturned):
         return
-    except Schoolkid.MultipleObjectsReturned:
-        print(f"Найдено несколько учеников с именем {schoolkid_name}")
+
+
+def create_commendation(schoolkid_name, subject_title):
+    child = get_schoolkid_by_name(schoolkid_name)
+    if child is None:
         return
 
     lesson = Lesson.objects.filter(
@@ -24,9 +29,8 @@ def create_commendation(schoolkid_name, subject_title):
         group_letter=child.group_letter,
         subject__title=subject_title
     ).order_by('-date').first()
-    
+
     if not lesson:
-        print(f"Уроки по предмету {subject_title} для {child.full_name} не найдены")
         return
 
     Commendation.objects.create(
@@ -36,3 +40,4 @@ def create_commendation(schoolkid_name, subject_title):
         subject=lesson.subject,
         teacher=lesson.teacher
     )
+
